@@ -1,4 +1,4 @@
-# SafeDB - Database Backup Utility [WIP]
+# SafeDB - Database Backup Utility
 
 This Python-based utility allows you to backup MariaDB and PostgreSQL databases with integrity checks and retention policies. It supports local backups as well as cloud storage options like Azure Blob Storage.
 
@@ -58,7 +58,7 @@ host/
 - `db-name`: Represents the name of the database.
 - `file`: Represents the backup file.
 
-## Verifying Backups [Work in Progress]
+## Verifying Backups
 
 The utility computes a SHA-256 hash of each backup file and logs it. To verify a backup:
 
