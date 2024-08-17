@@ -41,13 +41,7 @@ This Python-based utility allows you to backup MariaDB and PostgreSQL databases 
 Run the script with:
 
 ```
-python backup_utility.py
-```
-
-You can specify a different configuration file using the `--config` option:
-
-```
-python backup_utility.py --config /path/to/your/config.ini
+python src/main.py backup --config /path/to/your/config.ini
 ```
 
 ## Verifying Backups [Work in Progress]
