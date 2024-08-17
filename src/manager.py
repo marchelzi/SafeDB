@@ -1,9 +1,10 @@
 import os
 import configparser
-from datetime import datetime, timedelta
+from datetime import timedelta
 from db import MariaDBBackup, PostgreSQLBackup
 from store import LocalStorage, AzureStorage
 import logging
+import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,5 +68,7 @@ class BackupManager:
                 storage.upload(backup_file)
                 os.remove(backup_file)
 
-        cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+        cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(
+            days=self.retention_days
+        )
         storage.apply_retention_policy(cutoff_date)
