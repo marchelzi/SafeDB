@@ -49,26 +49,36 @@ class BackupManager:
                 f"Unsupported backup destination: {self.backup_destination}"
             )
 
+    def db_type(self, db_name):
+        return (
+            self.config[db_name]["type"]
+            if db_name in self.config
+            else self.config["General"]["default_db_type"]
+        )
+
     def run_backup(self):
         storage = self.get_storage()
 
         for db_name in self.databases:
-            db_type = (
-                self.config[db_name]["type"]
-                if db_name in self.config
-                else self.config["General"]["default_db_type"]
-            )
-            backup_handler = self.get_database_backup(db_name, db_type)
+            backup_handler = self.get_database_backup(db_name, self.db_type(db_name))
 
             backup_file = backup_handler.backup(db_name)
             if backup_file:
                 file_hash = backup_handler.compute_file_hash(backup_file)
                 logger.info(f"Backup hash for {db_name}: {file_hash}")
 
-                storage.upload(backup_file)
-                os.remove(backup_file)
+                storage.upload(backup_file, db_name, self.db_type(db_name))
+                if self.backup_destination == "AzureBlob":
+                    os.remove(backup_file)
+                    logger.info(f"Deleted local backup: {backup_file}")
 
         cutoff_date = datetime.datetime.now(datetime.UTC) - timedelta(
             days=self.retention_days
         )
-        storage.apply_retention_policy(cutoff_date)
+        if self.backup_destination == "Local":
+            for db_name in self.databases:
+                storage.apply_retention_policy(
+                    cutoff_date, db_name, self.db_type(db_name)
+                )
+        elif self.backup_destination == "AzureBlob":
+            storage.apply_retention_policy(cutoff_date)
