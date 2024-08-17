@@ -1,0 +1,37 @@
+[General]
+databases = mydb1,mydb2,mydb3 # Comma-separated list of databases to backup
+backup_destination = AzureBlob # Local or AzureBlob
+retention_days = 7 # Number of days to keep backups
+default_db_type = PostgreSQL # MariaDB or PostgreSQL
+
+[MariaDB]
+host = localhost
+port = 3306
+user = root
+password = general_mariadb_password
+
+[PostgreSQL]
+host = localhost
+port = 5432
+user = postgres
+password = general_postgres_password
+
+[mydb1]
+type = mariadb
+host = db1.example.com
+user = db1_user
+password = db1_password
+
+[mydb2]
+type = postgresql
+
+[mydb3]
+type = mariadb
+host = db3.example.com
+
+[Local]
+backup_path = /path/to/local/backups
+
+[AzureBlob]
+connection_string = your_azure_connection_string
+container_name = your_container_name
