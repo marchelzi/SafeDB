@@ -2,7 +2,7 @@
 databases = mydb1,mydb2,mydb3 # Comma-separated list of databases to backup
 backup_destination = AzureBlob # Local or AzureBlob
 retention_days = 7 # Number of days to keep backups
-default_db_type = PostgreSQL # MariaDB or PostgreSQL
+default_db_type = PostgreSQL # MariaDB, PostgreSQL, or MSSQL
 
 [MariaDB]
 host = localhost

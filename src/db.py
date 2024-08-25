@@ -7,6 +7,7 @@ import logging
 import mysql.connector as mariadb
 import psycopg2
 import datetime
+import pymssql
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -204,4 +205,66 @@ class PostgreSQLBackup(DatabaseBackup):
             return compressed_file
         except subprocess.CalledProcessError as e:
             logger.error(f"Failed to backup PostgreSQL database {db_name}: {e}")
+            return None
+
+class MSSQLBackup(DatabaseBackup):
+    def __init__(self, config, db_config):
+        super().__init__(config, db_config)
+        self.db_type = "MSSQL"
+
+    def get_db_list(self):
+        try:
+            conn = pymssql.connect(
+                server=self.config["MSSQL"]["host"],
+                user=self.config["MSSQL"]["user"],
+                password=self.config["MSSQL"]["password"],
+                database="master"
+            )
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sys.databases WHERE database_id > 4")
+            db_list = [row[0] for row in cursor.fetchall()]
+            cursor.close()
+            conn.close()
+            return db_list
+        except pymssql.Error as e:
+            logger.error(f"Failed to get database list: {e}")
+            return []
+
+    def backup(self, db_name):
+        # Use database-specific config if available, otherwise use general MSSQL config
+        db_creds = (
+            self.db_config[db_name]
+            if db_name in self.db_config
+            else self.config["MSSQL"]
+        )
+
+        server = db_creds.get("host", self.config["MSSQL"]["host"])
+        user = db_creds.get("user", self.config["MSSQL"]["user"])
+        password = db_creds.get("password", self.config["MSSQL"]["password"])
+
+        backup_file = self.generate_backup_filename(db_name)
+        compressed_file = f"{backup_file}.gz"
+
+        try:
+            conn = pymssql.connect(
+                server=server,
+                user=user,
+                password=password,
+                database=db_name
+            )
+            cursor = conn.cursor()
+
+            backup_query = f"BACKUP DATABASE [{db_name}] TO DISK = N'{backup_file}' WITH NOFORMAT, NOINIT, NAME = N'{db_name}-Full Database Backup', SKIP, NOREWIND, NOUNLOAD, STATS = 10"
+            cursor.execute(backup_query)
+
+            while cursor.nextset():
+                pass
+
+            cursor.close()
+            conn.close()
+
+            self.compress_file(backup_file, compressed_file)
+            return compressed_file
+        except pymssql.Error as e:
+            logger.error(f"Failed to backup MSSQL database {db_name}: {e}")
             return None

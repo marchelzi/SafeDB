@@ -5,7 +5,8 @@ from datetime import datetime
 import logging
 from azure.storage.blob import BlobServiceClient
 import datetime as dt
-
+from tqdm import tqdm
+import shutil
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -44,7 +45,7 @@ class LocalStorage(BackupStorage):
         dest_file = os.path.join(
             local_path, self.generate_folder_path(db_name, db_type, local_file)
         )
-        os.rename(local_file, dest_file)
+        shutil.move(local_file, dest_file)
         logger.info(f"Backup saved locally: {dest_file}")
         return True
 
@@ -76,8 +77,10 @@ class AzureStorage(BackupStorage):
                 blob=self.generate_folder_path(db_name, db_type, local_file),
             )
 
+            file_size = os.path.getsize(local_file)
             with open(local_file, "rb") as data:
-                blob_client.upload_blob(data)
+                with tqdm(total=file_size, unit='B', unit_scale=True, desc=f"Uploading {local_file}") as pbar:
+                    blob_client.upload_blob(data, progress_hook=lambda current, total: pbar.update(current - pbar.n))
 
             logger.info(f"Uploaded {local_file} to Azure Blob Storage")
             return True
@@ -85,22 +88,22 @@ class AzureStorage(BackupStorage):
             logger.error(f"Failed to upload to Azure Blob Storage: {e}")
             return False
 
-    def apply_retention_policy(self, cutoff_date):
+    def apply_retention_policy(self, cutoff_date, db_name=None, db_type=None):
         connection_string = self.config["AzureBlob"]["connection_string"]
         container_name = self.config["AzureBlob"]["container_name"]
         try:
-            blob_service_client = BlobServiceClient.from_connection_string(
-                connection_string
-            )
+            blob_service_client = BlobServiceClient.from_connection_string(connection_string)
             container_client = blob_service_client.get_container_client(container_name)
 
-            blobs = container_client.list_blobs()
+            prefix = self.generate_folder_path(db_name, db_type, "") if db_name and db_type else None
+            blobs = container_client.list_blobs(name_starts_with=prefix)
 
             for blob in blobs:
                 if blob.last_modified < cutoff_date:
                     container_client.delete_blob(blob.name)
-                    logger.info(
-                        f"Deleted old backup from Azure Blob Storage: {blob.name}"
-                    )
+                    logger.info(f"Deleted old backup from Azure Blob Storage: {blob.name}")
         except Exception as e:
             logger.error(f"Failed to apply retention policy on Azure Blob Storage: {e}")
+
+    def generate_folder_path(self, db_name, db_type, file_name):
+        return f"{db_type.lower()}/{db_name}/{os.path.basename(file_name)}"

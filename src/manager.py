@@ -23,7 +23,7 @@ class BackupManager:
         return config
 
     def validate_config(self):
-        required_sections = ["General", "MariaDB", "PostgreSQL", "Local", "AzureBlob"]
+        required_sections = ["General", "MariaDB", "PostgreSQL", "MSSQL", "Local", "AzureBlob"]
         for section in required_sections:
             if section not in self.config.sections():
                 raise ValueError(f"Missing required section: {section}")
@@ -36,6 +36,8 @@ class BackupManager:
             return MariaDBBackup(self.config, db_creds)
         elif db_type.lower() == "postgresql":
             return PostgreSQLBackup(self.config, db_creds)
+        elif db_type.lower() == "mssql":
+            return MSSQLBackup(self.config, db_creds)
         else:
             raise ValueError(f"Unsupported database type: {db_type}")
 
