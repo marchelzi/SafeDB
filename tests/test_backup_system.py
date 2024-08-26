@@ -3,6 +3,8 @@ from unittest.mock import Mock, patch, mock_open, MagicMock
 from datetime import datetime, timedelta
 import os
 import configparser
+from tqdm import tqdm
+from azure.storage.blob import BlobServiceClient, ContainerClient, BlobClient
 
 from src.db import DatabaseBackup, MariaDBBackup, PostgreSQLBackup
 from src.manager import BackupManager
@@ -237,6 +239,71 @@ def test_azure_storage_retention_policy(mock_blob_service):
     storage.apply_retention_policy(cutoff_date)
 
     mock_container_client.delete_blob.assert_called_once_with('old_backup.sql.gz')
+
+@pytest.fixture
+def azure_config():
+    return {
+        'AzureBlob': {
+            'connection_string': 'dummy_connection_string',
+            'container_name': 'backups'
+        }
+    }
+
+@pytest.fixture
+def azure_storage(azure_config):
+    return AzureStorage(azure_config)
+
+@patch('azure.storage.blob.BlobServiceClient.from_connection_string')
+@patch('os.path.getsize')
+def test_azure_storage_upload_success(mock_getsize, mock_blob_service, azure_storage):
+    mock_getsize.return_value = 1024  # 1 KB file size
+    mock_blob_client = Mock()
+    mock_blob_service.return_value.get_blob_client.return_value = mock_blob_client
+
+    with patch('builtins.open', new_callable=mock_open, read_data=b'test data'):
+        result = azure_storage.upload('/tmp/test_backup.sql.gz', 'test_db', 'mariadb')
+
+    assert result is True
+    mock_blob_client.upload_blob.assert_called_once()
+    mock_blob_service.return_value.get_blob_client.assert_called_once_with(
+        container='backups',
+        blob='mariadb/test_db/test_backup.sql.gz'
+    )
+
+@patch('azure.storage.blob.BlobServiceClient.from_connection_string')
+def test_azure_storage_upload_failure(mock_blob_service, azure_storage):
+    mock_blob_service.return_value.get_blob_client.side_effect = Exception("Connection error")
+
+    result = azure_storage.upload('/tmp/test_backup.sql.gz', 'test_db', 'mariadb')
+
+    assert result is False
+
+@patch('azure.storage.blob.BlobServiceClient.from_connection_string')
+def test_azure_storage_apply_retention_policy(mock_blob_service, azure_storage):
+    mock_container_client = Mock(spec=ContainerClient)
+    mock_blob_service.return_value.get_container_client.return_value = mock_container_client
+
+    current_time = datetime.now()
+    old_blob = Mock()
+    old_blob.name = 'mariadb/test_db/old_backup.sql.gz'
+    old_blob.last_modified = current_time - timedelta(days=10)
+    new_blob = Mock()
+    new_blob.name = 'mariadb/test_db/new_backup.sql.gz'
+    new_blob.last_modified = current_time - timedelta(days=5)
+    mock_container_client.list_blobs.return_value = [old_blob, new_blob]
+
+    cutoff_date = current_time - timedelta(days=7)
+    azure_storage.apply_retention_policy(cutoff_date, 'test_db', 'mariadb')
+
+    mock_container_client.delete_blob.assert_called_once_with('mariadb/test_db/old_backup.sql.gz')
+    assert mock_container_client.delete_blob.call_count == 1
+
+@patch('azure.storage.blob.BlobServiceClient.from_connection_string')
+def test_azure_storage_apply_retention_policy_exception(mock_blob_service, azure_storage):
+    mock_blob_service.return_value.get_container_client.side_effect = Exception("Connection error")
+
+    cutoff_date = datetime.now() - timedelta(days=7)
+    azure_storage.apply_retention_policy(cutoff_date)
 
 if __name__ == '__main__':
     pytest.main()

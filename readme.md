@@ -1,14 +1,15 @@
 # SafeDB - Database Backup Utility
 
-This Python-based utility allows you to backup MariaDB and PostgreSQL databases with integrity checks and retention policies. It supports local backups as well as cloud storage options like Azure Blob Storage.
+This Python-based utility allows you to backup MariaDB, PostgreSQL, and MSSQL databases with integrity checks and retention policies. It supports local backups as well as cloud storage options like Azure Blob Storage.
 
 ## Features
 
-- Support for MariaDB and PostgreSQL databases
+- Support for MariaDB, PostgreSQL, and MSSQL databases
 - Local and cloud storage backup options (Azure Blob Storage)
 - Integrity checks using SHA-256 hash
 - Configurable retention policy
 - Logging of all operations
+- Validate command to check config file validity
 
 ## Installation
 
@@ -26,6 +27,7 @@ This Python-based utility allows you to backup MariaDB and PostgreSQL databases 
 3. Ensure you have the necessary database client tools installed:
    - For MariaDB: `mariadb-dump`
    - For PostgreSQL: `pg_dump`
+   - For MSSQL: `sqlcmd`
 
 ## Configuration
 
@@ -41,7 +43,13 @@ This Python-based utility allows you to backup MariaDB and PostgreSQL databases 
 Run the script with:
 
 ```
-python src/main.py backup --config /path/to/your/config.ini
+python src/main.py backup /path/to/your/config.ini
+```
+
+or
+
+```
+python src/main.py validate /path/to/your/config.ini
 ```
 
 ## Folder Structure
@@ -83,13 +91,21 @@ The utility computes a SHA-256 hash of each backup file and logs it. To verify a
 
 ## Done ✓
 - [x] Implement the `backup` command to create database backups.
-- [x] Add support for MariaDB and PostgreSQL databases.
+- [x] Add support for MariaDB, PostgreSQL, and MSSQL databases.
 - [x] Add support for local backup destinations.
 - [x] Add support for Azure Blob Storage as a backup destination.
 - [x] Implement retention policy to delete old backups.
 - [x] Add logging of all operations.
 - [x] Add configuration file for easy setup.
 - [x] Add command-line arguments for flexibility.
+- [x] Implement validate command to check config file validity.
+- [x] Enhance BackupManager with validate_config method.
+- [x] Update main.py to include validate command.
+- [x] Improve error handling and logging in backup process.
+- [x] Add support for MSSQL backups in db.py.
+- [x] Enhance AzureStorage with better progress tracking and error handling.
+- [x] Update tests to cover new functionality.
+- [x] Add tqdm to requirements.txt for progress bar support.
 
 ## Security Notes
 
@@ -100,7 +116,7 @@ The utility computes a SHA-256 hash of each backup file and logs it. To verify a
 
 - Check the log file for detailed error messages and operation logs.
 - Ensure you have the necessary permissions to access the databases and backup destinations.
-- Verify that all required tools (`mariadb-dump`, `pg_dump`) are installed and accessible in your system's PATH.
+- Verify that all required tools (`mariadb-dump`, `pg_dump`, `sqlcmd`) are installed and accessible in your system's PATH.
 
 ## Contributing
 
