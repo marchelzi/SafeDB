@@ -1,7 +1,7 @@
 import os
 import configparser
 from datetime import timedelta
-from db import MariaDBBackup, PostgreSQLBackup
+from db import MSSQLBackup, MariaDBBackup, PostgreSQLBackup
 from store import LocalStorage, AzureStorage
 import logging
 import datetime
@@ -23,7 +23,14 @@ class BackupManager:
         return config
 
     def validate_config(self):
-        required_sections = ["General", "MariaDB", "PostgreSQL", "MSSQL", "Local", "AzureBlob"]
+        required_sections = [
+            "General",
+            "MariaDB",
+            "PostgreSQL",
+            "MSSQL",
+            "Local",
+            "AzureBlob",
+        ]
         for section in required_sections:
             if section not in self.config.sections():
                 raise ValueError(f"Missing required section: {section}")
@@ -84,3 +91,11 @@ class BackupManager:
                 )
         elif self.backup_destination == "AzureBlob":
             storage.apply_retention_policy(cutoff_date)
+
+    def run_restore(self, db_name, db_type):
+        backup_handler = self.get_database_backup(db_name, db_type)
+        restore = backup_handler.restore(db_name)
+        if restore:
+            logger.info(f"Restored {db_name} from {restore}")
+        else:
+            logger.error(f"Failed to restore {db_name}")
