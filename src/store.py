@@ -58,7 +58,10 @@ class LocalStorage(BackupStorage):
         local_path = self.config["Local"]["backup_path"]
         os.makedirs(local_path, exist_ok=True)
         os.makedirs(
-            self.generate_folder_path(db_name, db_type, local_file).rsplit("/", 1)[0],
+            os.path.join(
+                local_path,
+                self.generate_folder_path(db_name, db_type, local_file).rsplit("/", 1)[0],
+            ),
             exist_ok=True,
         )
         dest_file = os.path.join(
